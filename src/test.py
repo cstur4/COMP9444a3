@@ -25,4 +25,3 @@ for _ in range(1000):
 
 print(env.action_space)
 print(env.observation_space)
-

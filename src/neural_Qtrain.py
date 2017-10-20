@@ -73,15 +73,57 @@ def get_network(state_dim, action_dim, hidden_nodes=HIDDEN_NODES):
     # TO IMPLEMENT: Q network, whose input is state_in, and has action_dim outputs
     # which are the network's esitmation of the Q values for those actions and the
     # input state. The final layer should be assigned to the variable q_values
-    ...
-    q_values = ...
+    w1 = tf.Variable(
+            name='qweights',
+            initial_value = tf.truncated_normal(
+                shape=[state_dim, hidden_nodes],
+                dtype=tf.float32,
+                stddev=1.0
+                )
+            )
+
+    b1 = tf.Variable(
+            name='qbiases',
+            initial_value = tf.truncated_normal(
+                shape=[hidden_nodes],
+                dtype=tf.float32,
+                stddev=1.0
+                )
+            )
+
+    w2 = tf.Variable(
+            name='qweights',
+            initial_value = tf.truncated_normal(
+                shape=[hidden_nodes, action_dim],
+                dtype=tf.float32,
+                stddev=1.0
+                )
+            )
+
+    b2 = tf.Variable(
+            name='qbiases',
+            initial_value = tf.truncated_normal(
+                shape=[action_dim],
+                dtype=tf.float32,
+                stddev=1.0
+                )
+            )
+
+    hidden_values = tf.nn.relu_layer(state_in, w1, b1)
+    q_values = tf.nn.relu_layer(hidden_values, w2, b2)
+
+    #TODO clean up with tf.layers.dense
 
     q_selected_action = \
         tf.reduce_sum(tf.multiply(q_values, action_in), reduction_indices=1)
 
     # TO IMPLEMENT: loss function
     # should only be one line, if target_in is implemented correctly
-    loss = ...
+    loss = tf.losses.absolute_difference(
+            labels=target_in,
+            predictions=q_selected_action
+            )
+
     optimise_step = tf.train.AdamOptimizer().minimize(loss)
 
     train_loss_summary_op = tf.summary.scalar("TrainingLoss", loss)
@@ -129,9 +171,12 @@ def update_replay_buffer(replay_buffer, state, action, reward, next_state, done,
     """
     # TO IMPLEMENT: append to the replay_buffer
     # ensure the action is encoded one hot
-    ...
+    one_hot_action = [0] * action_dim
+    one_hot_action[action] = 1
+
     # append to buffer
-    replay_buffer.append(...)
+    replay_buffer.append((state, one_hot_action, reward, next_state, done))
+
     # Ensure replay_buffer doesn't grow larger than REPLAY_SIZE
     if len(replay_buffer) > REPLAY_SIZE:
         replay_buffer.pop(0)
@@ -143,7 +188,6 @@ def do_train_step(replay_buffer, state_in, action_in, target_in,
                   train_loss_summary_op, batch_presentations_count):
     target_batch, state_batch, action_batch = \
         get_train_batch(q_values, state_in, replay_buffer)
-
     summary, _ = session.run([train_loss_summary_op, optimise_step], feed_dict={
         target_in: target_batch,
         state_in: state_batch,
@@ -188,7 +232,8 @@ def get_train_batch(q_values, state_in, replay_buffer):
             target_batch.append(reward_batch[i])
         else:
             # TO IMPLEMENT: set the target_val to the correct Q value update
-            target_val = ...
+            target_val = reward_batch[i] + GAMMA * np.amax(Q_value_batch)
+            print(target_val)
             target_batch.append(target_val)
     return target_batch, state_batch, action_batch
 
